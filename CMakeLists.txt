@@ -11,13 +11,9 @@ if (ANDROID)
     add_library(${EXECUTABLE_NAME} SHARED)
 else()
     add_executable(${EXECUTABLE_NAME})
-    # Linux 下可执行文件名与资产命名空间目录同名（如 adventure2d），
-    # 无后缀的 exe 文件会抢占该目录名导致资产拷贝失败；把 exe 放进同名子目录，
-    # 使其成为真正的目录以同时容纳 exe 与资产（与 Windows .exe 行为一致）。
-    if(UNIX AND NOT APPLE)
-        set_target_properties(${EXECUTABLE_NAME} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIGURATION>/${EXECUTABLE_NAME}")
-    endif()
+    # 资产已从 assets/adventure2d/ 上移到 assets/ 根目录（audio/、textures/ 等），
+    # 不再带与可执行文件同名的命名空间前缀，故 Linux 无后缀 exe 与资产目录撞名的问题
+    # 已根治，无需再把 exe 塞进同名子目录。
 endif()
 
 file(GLOB SRC_FILES  "*.h"  "*.c" "*.hpp" "*.cpp" "scenes/*.h" "scenes/*.cpp" "layers/*.h" "layers/*.cpp" "systems/*.h" "systems/*.cpp" "components/*.h" "components/*.cpp" "network/*.h" "network/*.cpp" "factory/*.h" "factory/*.cpp")
@@ -62,22 +58,17 @@ joy_add_sources(${EXECUTABLE_NAME})
 target_include_directories(${EXECUTABLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # ------------------- 资产处理 -------------------
-set(ASSET_ROOTS
-    "${CMAKE_CURRENT_SOURCE_DIR}/assets|${EXECUTABLE_NAME}"
-)
-
+# 资产已从 assets/adventure2d/ 上移到 assets/ 根目录（audio/、textures/ 等），
+# 不再带与可执行文件同名的命名空间前缀；故直接以 assets 为根、相对路径不含 exe 名，
+# 与 joy_topdown_template 等已全绿仓库保持一致。
+set(ASSETS_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/assets")
+file(GLOB_RECURSE ALL_ASSET_FILES "${ASSETS_ROOT}/*")
 set(ASSET_FILES "")
-foreach(ASSET_ROOT_ENTRY ${ASSET_ROOTS})
-    string(REPLACE "|" ";" root_parts "${ASSET_ROOT_ENTRY}")
-    list(GET root_parts 0 ASSETS_ROOT)
-    list(GET root_parts 1 NAMESPACE)
-    file(GLOB_RECURSE ALL_ASSET_FILES "${ASSETS_ROOT}/${NAMESPACE}/*")
-    foreach(file ${ALL_ASSET_FILES})
-        if(NOT file MATCHES "\\.svn/" AND NOT file MATCHES "\\.git/")
-            file(RELATIVE_PATH rel_path "${ASSETS_ROOT}/${NAMESPACE}" "${file}")
-            list(APPEND ASSET_FILES "${file}|${EXECUTABLE_NAME}/${rel_path}")
-        endif()
-    endforeach()
+foreach(file ${ALL_ASSET_FILES})
+    if(NOT file MATCHES "\\.svn/" AND NOT file MATCHES "\\.git/")
+        file(RELATIVE_PATH rel_path "${ASSETS_ROOT}" "${file}")
+        list(APPEND ASSET_FILES "${file}|${rel_path}")
+    endif()
 endforeach()
 
 if (APPLE)
