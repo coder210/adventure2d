@@ -102,7 +102,11 @@ else()
     endif()
 
     macro(copy_helper filename outname)
+        # 目标目录在部分 CMake 版本（如 3.22）下 copy_if_different 不会自动创建，
+        # 全新构建时父目录尚不存在会导致 copy 失败；显式 mkdir 保证跨版本一致。
+        get_filename_component(_asset_outdir "${outname}" DIRECTORY)
         add_custom_command(TARGET ${EXECUTABLE_NAME} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${_asset_outdir}"
             COMMAND ${CMAKE_COMMAND} -E copy_if_different "${filename}" "${outname}"
         )
     endmacro()
